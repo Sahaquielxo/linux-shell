@@ -1,0 +1,123 @@
+# Documentation: https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/7/html/Installation_Guide/sect-kickstart-syntax.html
+
+# Begin installation
+# The default installation mode. You must specify the type of installation from. We are using url method
+install
+url --url http://dist.search.km/centos-7.2-x86_64 
+
+# Start graphical mode for settings disks
+graphical
+
+# Perform the Kickstart installation in text mode. Kickstart installations are performed in graphical mode by default.
+text
+# That will apply the various network settings specified to the first network interface that is in connected state.
+network --bootproto=dhcp --device=link
+lang en_US.UTF-8
+keyboard us
+#This command is required when performing an unattended installation on a system with previously initialized disks.
+zerombr
+
+# Erases all partitions from the system before install.
+clearpart --all
+
+# Specifies how the boot loader should be installed.
+bootloader --location=mbr --driveorder=sda,sdb,sdc --boot-drive=sdb
+
+#Sets the system time zone to timezone. --utc ->  the system assumes the hardware clock is set to UTC
+timezone --utc Europe/Moscow
+
+#Sets up the authentication options for the system using the authconfig command, which can also be run on the command line after the installation finishes
+auth --enablemd5 --enableshadow
+
+#Sets the system's root password to the password argument.
+rootpw --iscrypted $1$Cs9J81xU$rN.64VJYws0A2q4sXGRDR0
+
+# Disable SElinux
+selinux --disabled
+
+# Reboot system
+reboot
+
+# Disable Firewall
+firewall --disabled
+
+# X is not configured on the installed system.
+skipx
+
+# Add repos for OS
+repo --name=centos-7.2.1511-x86_64 --baseurl=http://yum.search.km/centos-7.2.1511-x86_64
+repo --name=centos-7.2.1511-updates-x86_64 --baseurl=http://yum.search.km/centos-7.2.1511-updates-x86_64
+repo --name=centos-7.2.1511-extras-x86_64 --baseurl=http://yum.search.km/centos-7.2.1511-extras-x86_64
+repo --name=epel-7.2.1511-x86_64 --baseurl=http://yum.search.km/epel-7.2.1511-x86_64
+repo --name=centos-7.2.1511-collectd-x86_64 --baseurl=http://yum.search.km/centos-7.2.1511-collectd-x86_64/
+
+# Install packages.
+%packages
+
+
+
+
+
+bash-completion
+bind-utils
+chrony
+coreutils
+curl
+dmidecode
+gzip
+htop
+iftop
+iotop
+iputils
+lsof
+mailx
+man
+mtr
+nc
+net-tools
+openssh-clients
+openssh-server
+pbzip2
+pigz
+puppet
+rsync
+smartmontools
+sudo
+tcpdump
+teamd
+telnet
+vim
+wget
+%end
+
+# Post installation actions
+%post
+
+# set default config for puppet3
+cat << EOF > /etc/puppet/puppet.conf
+[main]
+    logdir           = /var/log/puppet
+    rundir           = /var/run/puppet
+    pluginsource     = puppet:///plugins
+    pluginfactsource = puppet:///pluginfacts
+[agent]
+    use_srv_records  = true
+    srv_domain       = search.km
+
+    ignorecache      = true
+    pidfile          = /var/run/puppet/agent.pid
+    node_name_fact   = fqdn
+    pluginsync       = true
+
+# Set by ENC through puppetconf module.
+    environment      = mailpaas
+EOF
+# Update system
+yum update -y
+
+rpm -i http://yum.ix.km/centos-7.2.1511-x86_64/sputnik-repo-centos-7.2.1511-zabbix-prod-1.1-7.noarch.rpm
+rpm -i http://yum.ix.km/centos-7.2.1511-x86_64/sputnik-repo-centos-7.2.1511-1.1-7.noarch.rpm
+rpm -i http://yum.ix.km/centos-7.2.1511-x86_64/sputnik-repo-centos-7.2.1511-adm-repo-1.1-7.noarch.rpm
+rpm -i http://yum.ix.km/centos-7.2.1511-x86_64/sputnik-repo-epel-7.2.1511-1.1-7.noarch.rpm
+rpm -i http://yum.ix.km/centos-7.2.1511-x86_64/sputnik-repo-centos-7.2.1511-kmsearch-sys-prod-1.1-7.noarch.rpm
+%end

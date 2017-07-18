@@ -1,0 +1,132 @@
+#version=RHEL7.2
+auth --useshadow --enablemd5
+
+skipx
+text
+reboot
+eula --agreed
+# Run the Setup Agent on first boot
+firstboot --disable
+# Keyboard layouts
+keyboard --vckeymap=us --xlayouts='us'
+# System language
+lang en_US.UTF-8
+
+# Network information
+#network --device=bond0 --noipv6 --bootproto=dhcp --onboot=yes --bondslaves=enp1s0f0,enp1s0f1 --bondopts=mode=802.3ad,miimon=100,xmit_hash_policy=layer3+4 --activate
+selinux --disabled
+firewall --disabled
+services --disabled=NetworkManager --enabled=sshd,ntpd,network
+# Root password
+rootpw --iscrypted $1$Cs9J81xU$rN.64VJYws0A2q4sXGRDR0
+# System timezone
+timezone Europe/Moscow
+
+#################### DEFAULT PARTITIONING ######################
+zerombr
+clearpart --all --initlabel
+bootloader --location=mbr --driveorder=sdm,sdn
+
+part biosboot --fstype biosboot --ondisk=sda --size=1
+
+part raid.01 --asprimary --fstype="raid" --ondisk=sdm --size=500
+part swap.1 --asprimary --fstype="swap" --ondisk=sdm --size=4096
+part raid.02 --asprimary --fstype="raid" --ondisk=sdm --grow
+
+part raid.03 --asprimary --fstype="raid" --ondisk=sdn --size=500
+part swap.2 --asprimary --fstype="swap" --ondisk=sdn --size=4096
+part raid.04 --asprimary --fstype="raid" --ondisk=sdn --grow
+
+raid /boot --device=md0 --level=1 raid.01 raid.03 --fstype="ext2"
+raid / --device=md1 --level=1 raid.02 raid.04 --fstype="ext4"
+
+################################################################
+
+url --url="http://dist.ix.km/centos-7.2-x86_64/"
+repo --name="CentOS-Base" --baseurl=http://yum.ix.km/centos-7.2.1511-x86_64/
+repo --name="epel" --baseurl=http://yum.ix.km/epel-7.2.1511-x86_64/
+repo --name="adm" --baseurl=http://yum.ix.km/centos-7.2.1511-adm-repo-x86_64/
+
+%packages --nobase --excludedocs
+
+
+
+
+
+@core
+mdadm
+wget
+net-tools
+mc
+ntp
+tcpdump
+telnet
+sudo
+bind-utils
+quota
+curl
+-postfix*
+htop
+whois
+-NetworkManager*
+
+
+
+
+
+sputnik-repo-centos-7.2.1511-zabbix-prod
+sputnik-repo-centos-7.2.1511
+sputnik-repo-centos-7.2.1511-adm-repo
+sputnik-repo-epel-7.2.1511
+sputnik-repo-centos-7.2.1511-kmsearch-sys-prod
+%end
+
+#
+%post 
+#
+
+rm -f /etc/sysconfig/network-scripts/ifcfg-enp*
+
+# bond setup
+
+echo 'bond config'
+tee /etc/sysconfig/network-scripts/ifcfg-bond0 <<BOND
+DEVICE="bond0"
+BONDING_OPTS="mode=802.3ad miimon=100 xmit_hash_policy=layer3+4"
+BOOTPROTO="dhcp"
+PEERDNS="no"
+ONBOOT="yes"
+TYPE="Bond"
+LINKDELAY="5"
+BOND
+
+# other interfaces setup
+
+for i in `ip a|grep BROADCAST|awk '{ print $2 }'|sed -e 's/://g'`; do
+echo "TYPE=Ethernet
+DEVICE=$i
+ONBOOT=yes
+BOOTPROTO=none
+MASTER=bond0
+SLAVE=yes" >> /etc/sysconfig/network-scripts/ifcfg-$i
+done
+
+#
+echo "net.ipv6.conf.all.disable_ipv6=1" >> /etc/sysctl.conf
+echo "net.ipv6.conf.default.disable_ipv6=1" >> /etc/sysctl.conf
+sed -i 's/^%wheel/# %wheel/g;s/# %wheel/%wheel/g' /etc/sudoers
+systemctl enable libvirtd.service
+#
+mkdir -p /root/.ssh/
+tee /root/.ssh/authorized_keys2 <<SSH
+
+
+
+
+SSH
+chmod 700 /root/.ssh/
+chmod 600 /root/.ssh/authorized_keys2
+sed -i 's/^AuthorizedKeysFile/#AuthorizedKeysFile/g' /etc/ssh/sshd_config
+rm -f /etc/yum.repos.d/CentOS*
+
+%end

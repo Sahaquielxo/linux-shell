@@ -1,0 +1,147 @@
+#version=RHEL7.2
+auth --useshadow --enablemd5
+
+skipx
+text
+reboot
+eula --agreed
+# Run the Setup Agent on first boot
+firstboot --disable
+# Keyboard layouts
+keyboard --vckeymap=us --xlayouts='us'
+# System language
+lang en_US.UTF-8
+
+# Network information
+# network --device=bond0 --noipv6 --bootproto=dhcp --onboot=yes --bondslaves=enp1s0f0,enp1s0f1 --bondopts=mode=802.3ad,miimon=100,xmit_hash_policy=layer3+4 --activate
+selinux --disabled
+firewall --disabled
+services --disabled=NetworkManager --enabled=sshd,ntpd,network
+# Root password
+rootpw --iscrypted $1$Cs9J81xU$rN.64VJYws0A2q4sXGRDR0
+# System timezone
+timezone Europe/Moscow
+
+#################### DEFAULT PARTITIONING ######################
+zerombr
+clearpart --drives=sda,sdb,sdc --all
+bootloader --location=mbr --driveorder=sda,sdb,sdc
+
+part raid.01 --asprimary --fstype="raid" --ondisk=sda --size=200
+part raid.02 --asprimary --fstype="swap" --ondisk=sda --size=4096
+part raid.03 --asprimary --fstype="raid" --ondisk=sda --size=800000
+part raid.04 --asprimary --fstype="raid" --ondisk=sdb --size=200
+part raid.05 --asprimary --fstype="swap" --ondisk=sdb --size=4096
+part raid.06 --asprimary --fstype="raid" --ondisk=sdb --size=800000
+part raid.07 --asprimary --fstype="raid" --ondisk=sdc --size=200
+part raid.08 --asprimary --fstype="swap" --ondisk=sdc --size=4096
+part raid.09 --asprimary --fstype="raid" --ondisk=sdc --size=800000
+raid /boot --device=md0 --level=1 --spares=1 raid.01 raid.04 raid.07 --fstype="ext2"
+raid / --device=md2 --level=1 --spares=1 raid.03 raid.06 raid.09 --fstype="ext4"
+################################################################
+
+url --url="http://dist.srv.pv.km/centos-7.2-x86_64/"
+repo --name="CentOS-Base" --baseurl=http://yum.srv.pv.km/centos-7.2.1511-x86_64/
+repo --name="epel" --baseurl=http://yum.srv.pv.km/epel-7.2.1511-x86_64/
+repo --name="adm" --baseurl=http://yum.srv.pv.km/centos-7.2.1511-adm-repo-x86_64/
+
+%packages --nobase --excludedocs
+
+
+
+
+
+@core
+mdadm
+wget
+net-tools
+mc
+ntp
+tcpdump
+telnet
+sudo
+bind-utils
+quota
+curl
+-postfix*
+htop
+whois
+-NetworkManager*
+libvirt
+qemu-kvm
+
+
+
+%end
+
+#
+%post 
+#
+rm -f /etc/sysconfig/network-scripts/ifcfg-enp*
+#
+sleep 2
+#
+echo 'Bond Config'
+tee /etc/sysconfig/network-scripts/ifcfg-bond0 <<BOND
+DEVICE="bond0"
+BONDING_OPTS="mode=802.3ad miimon=100 xmit_hash_policy=layer3+4"
+BOOTPROTO="static"
+ONBOOT="yes"
+TYPE="Bond"
+BRIDGE="br0"
+BOND
+echo HWADDR=`ip a | grep enp2s0f0 -A1 | grep ether | awk '{print $2}'` >> /etc/sysconfig/network-scripts/ifcfg-bond0 
+sleep 2
+#
+echo 'ETH0 Config'
+tee  /etc/sysconfig/network-scripts/ifcfg-enp1s0f0 <<ETH
+TYPE=Ethernet
+DEVICE=enp1s0f0
+ONBOOT=yes
+MASTER=bond0
+SLAVE=yes
+ETH
+sleep 2
+#
+echo 'ETH1 Config'
+tee  /etc/sysconfig/network-scripts/ifcfg-enp1s0f1 <<ETH
+TYPE=Ethernet
+DEVICE=enp1s0f1
+ONBOOT=yes
+MASTER=bond0
+SLAVE=yes
+ETH
+sleep 2
+#
+tee /etc/sysconfig/network-scripts/ifcfg-br0 <<BR0
+DEVICE="br0"
+BOOTPROTO="dhcp"
+ONBOOT="yes"
+TYPE="Bridge"
+LINKDELAY=10
+DELAY="0"
+BR0
+sleep 2
+#
+echo "net.ipv6.conf.all.disable_ipv6=1" >> /etc/sysctl.conf
+echo "net.ipv6.conf.default.disable_ipv6=1" >> /etc/sysctl.conf
+sed -i 's/^%wheel/# %wheel/g;s/# %wheel/%wheel/g' /etc/sudoers
+systemctl enable libvirtd.service
+#
+mkdir -p /root/.ssh/
+tee /root/.ssh/authorized_keys2 <<SSH
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDbjWsrNhvLYeFzG+ggl6E1FMX4XuUk5R/SEhES6BBSGA1K8Zh19pU2wEknuLzQSZnjljRZsmvJyZguuYbvu6GC0P1nt0n1mnunVzIDgRUjnxIXjSQPbxh1Rz1TlQeoxv9JceNHvj4UK0gUTblGZ5qKAJsVf186GVmPtgOO/mxtjfMlBXpSf7S4jdfLXnORfbQkHGsCrWuqnx2uyGz6FYSPYaccWYle7HlaeroU6iwTg2Se3ZHl9+wwnBuyQZaNNVgY3J4Lpqs3HXdlWx6G0+fPyzUyZhqrXTawATFSM8IAbJt4WLuK66vy2/NF34onwceaUav4796XwFF61V7eW18z padvo@workbox
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDlqupl5sDTrikfXB4qRQNnredgW6fNEeiepVcBjOt+qHrCjmszgspoy0z9CQ8p8w8KQgYmf3tVdoBocV81GsidlfNF6RTUJ4NNeYMGLuB3j/Kkldddln18LtZIW0ZooxpHiyXiW0oBJ1HKNxsX9J24MbWnoLpX8SUKr4aBQzrdf88noZ8bwDIJsHDFqPoGkAED1FjZEcG3Mt6iUdmLUKEivgKqGTR/YOfvxxiSBCt1yzWwS5OG9xKErieUVOIw7LeHoco7xrpNqz6pBM5kODK7MrF3rdWafuN+OHAQFxTW2EJ2B4mdtlb26AYASs4zqar7UELp0K+VxPJgZFI2/+UF alexhell@ASin-desktop
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC/cskY1AlhaJ8XohZItcJRljKHM4MfQm37ENWXC0cy9pTgpV5fwdxWULQOnf9yMeze6494tkvmTZ8p6n8UcAjE1EafzqILrLSSEuWv/M5qRGOOGtmkFT74PuSy30tm6bzEf9iKBU67XiXaipMwwgGNwYnY6JUc67RIXNSBI+LPQeYDiqclzrdAuUyH7xWGyh64sZh4O2r9wnTMBsbs8frNszzYn5gO46KhUsfYafNYEMgs6cIUML0EN+7DUkyQD8vPhJh01KimQPuIILiyfmfM1qcaHXg1qp++dJVokh7g8Z408I/av5U/owaUUCh+hQFDTsB4UjeRyPbXinmxSO9x biohazard@mbp
+SSH
+chmod 700 /root/.ssh/
+chmod 600 /root/.ssh/authorized_keys2
+sed -i 's/^AuthorizedKeysFile/#AuthorizedKeysFile/g' /etc/ssh/sshd_config
+yum -yv update
+#
+rpm -i http://yum.ix.km/centos-7.2.1511-x86_64/sputnik-repo-centos-7.2.1511-zabbix-prod-1.1-7.noarch.rpm
+rpm -i http://yum.ix.km/centos-7.2.1511-x86_64/sputnik-repo-centos-7.2.1511-1.1-7.noarch.rpm
+rpm -i http://yum.ix.km/centos-7.2.1511-x86_64/sputnik-repo-centos-7.2.1511-adm-repo-1.1-7.noarch.rpm
+rpm -i http://yum.ix.km/centos-7.2.1511-x86_64/sputnik-repo-epel-7.2.1511-1.1-7.noarch.rpm
+rpm -i http://yum.ix.km/centos-7.2.1511-x86_64/sputnik-repo-centos-7.2.1511-kmsearch-sys-prod-1.1-7.noarch.rpm
+%end

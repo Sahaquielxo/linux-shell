@@ -1,0 +1,138 @@
+#version=RHEL7
+auth --useshadow --enablemd5
+
+skipx
+text
+reboot
+eula --agreed
+# Run the Setup Agent on first boot
+firstboot --enable
+#firstboot --disable
+# Keyboard layouts
+keyboard --vckeymap=us --xlayouts='us'
+# System language
+lang en_US.UTF-8
+
+# Network information
+network --device=enp1s0f0 --noipv6 --bootproto=dhcp --activate
+selinux --disabled
+firewall --disabled
+services --disabled=NetworkManager --enabled=sshd,ntpd,network
+# Root password
+rootpw --iscrypted $1$Cs9J81xU$rN.64VJYws0A2q4sXGRDR0
+# System timezone
+timezone Europe/Moscow
+
+#################### DEFAULT PARTITIONING ######################
+zerombr
+clearpart --drives=sda --all --initlabel
+bootloader --location=mbr --driveorder=sda
+
+part /boot --asprimary --fstype="ext2" --ondisk=sda --size=200
+part swap --asprimary --fstype="swap" --ondisk=sda --size=4096
+part / --asprimary --fstype="ext4" --grow --ondisk=sda --size=1 --fsoptions rw,noatime,commit=30
+
+url --url="http://dist.srv.pv.km/centos-7.2-x86_64/"
+repo --name="CentOS-Base" --baseurl=http://yum.srv.pv.km/centos-7.2.1511-x86_64/
+repo --name="epel" --baseurl=http://yum.srv.pv.km/epel-7.2.1511-x86_64/
+repo --name="adm" --baseurl=http://yum.srv.pv.km/centos-7.2.1511-adm-repo-x86_64/
+
+
+%packages --nobase --excludedocs
+
+
+
+
+
+@core
+mdadm
+wget
+net-tools
+mc
+ntp
+tcpdump
+telnet
+sudo
+bind-utils
+quota
+curl
+htop
+whois
+vim
+yum-utils
+-NetworkManager*
+
+
+
+
+%end
+
+
+%post 
+
+# set default MOTD
+echo "Kickstarted on $(date +'%Y-%m-%d')" >> /etc/motd
+
+sleep 2
+
+# REPOS
+#
+#tee /etc/yum.repos.d/centos-7-2-1511-x86_64.repo <<REPO
+#[centos-7.2.1511-x86_64]
+#name=centos-7.2.1511-x86_64
+#baseurl=http://yum.ix.km/centos-7.2.1511-x86_64/
+#failovermethod=priority
+#enabled=1
+#gpgcheck=0
+#REPO
+#
+#tee /etc/yum.repos.d/adm.repo <<REPO
+#[adm]
+#name=centos-adm-x86_64
+#baseurl=http://yum.srv.pv.km/centos-7.2.1511-adm-repo-x86_64/
+#failovermethod=priority
+#enabled=1
+#gpgcheck=0
+#REPO
+#
+#tee /etc/yum.repos.d/epel.repo <<REPO
+#[epel]
+#name=epel-7.2.1511-x86_64
+#baseurl=http://yum.srv.pv.km/epel-7.2.1511-x86_64/
+#failovermethod=priority
+#enabled=1
+#gpgcheck=0
+#REPO
+#
+#tee /etc/yum.repos.d/sys-prod.repo <<REPO
+#[sys-prod]
+#name=centos-7.2.1511-kmsearch-sys-prod-x86_64
+#baseurl=http://yum.srv.pv.km/centos-7.2.1511-kmsearch-sys-prod-x86_64/
+#failovermethod=priority
+#enabled=1
+#gpgcheck=0
+#REPO
+########################################################################################################################
+echo "net.ipv6.conf.all.disable_ipv6=1" >> /etc/sysctl.conf
+echo "net.ipv6.conf.default.disable_ipv6=1" >> /etc/sysctl.conf
+# WHEEL GROUPE in no passwd root
+sed -i 's/^%wheel/# %wheel/g;s/# %wheel/%wheel/g' /etc/sudoers
+# SSH for superusers
+mkdir -p /root/.ssh/
+tee /root/.ssh/authorized_keys2 <<SSH
+
+
+
+
+SSH
+chmod 700 /root/.ssh/
+chmod 600 /root/.ssh/authorized_keys2
+sed -i 's/^AuthorizedKeysFile/#AuthorizedKeysFile/g' /etc/ssh/sshd_config
+
+yum -yv update
+rpm -i http://yum.ix.km/centos-7.2.1511-x86_64/sputnik-repo-centos-7.2.1511-zabbix-prod-1.1-7.noarch.rpm
+rpm -i http://yum.ix.km/centos-7.2.1511-x86_64/sputnik-repo-centos-7.2.1511-1.1-7.noarch.rpm
+rpm -i http://yum.ix.km/centos-7.2.1511-x86_64/sputnik-repo-centos-7.2.1511-adm-repo-1.1-7.noarch.rpm
+rpm -i http://yum.ix.km/centos-7.2.1511-x86_64/sputnik-repo-epel-7.2.1511-1.1-7.noarch.rpm
+rpm -i http://yum.ix.km/centos-7.2.1511-x86_64/sputnik-repo-centos-7.2.1511-kmsearch-sys-prod-1.1-7.noarch.rpm
+%end

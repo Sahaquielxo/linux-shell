@@ -1,0 +1,94 @@
+install
+text
+#network --device=bond0 --onboot=yes --activate --bootproto=dhcp --bondopts=mode=802.3ad,miimon=100,xmit_hash_policy=layer3+4 --bondslaves=eth0,eth1
+network --device eth0 --bootproto dhcp
+#url --url http://10.42.12.214/centos-base/
+url --url http://dist.ix.km/centos-6.5-x86_64
+lang en_US.UTF-8
+keyboard us
+zerombr
+clearpart --drives=vda,vdb --all
+bootloader --location=mbr --driveorder=vda,vdb
+timezone --utc Europe/Moscow
+auth --enablemd5 --enableshadow
+rootpw --iscrypted $1$Cs9J81xU$rN.64VJYws0A2q4sXGRDR0
+selinux --disabled
+reboot
+firewall --disabled
+skipx
+
+part raid.01 --asprimary --fstype="raid" --onpart=vda1 --size=8192
+part raid.02 --asprimary --fstype="raid" --onpart=vda2 --size=102400
+part raid.03 --asprimary --fstype="raid" --onpart=vdb1 --size=8192
+part raid.04 --asprimary --fstype="raid" --onpart=vdb2 --size=102400
+raid swap --device=md1 --fstype="swap" --level=0 raid.01 raid.03
+raid / --device=md0 --fstype="ext4" --level=1 raid.02 raid.04 --fsoptions noatime,commit=30,data=writeback,nobh
+
+#A B C D E F G H I K L M N O P Q R S T V X Y Z
+part /kafka1  --fstype="ext4" --grow --onpart=vda3 --size=1 --fsoptions noatime,commit=30,data=writeback,nobh
+part /kafka2  --fstype="ext4" --grow --onpart=vdb3 --size=1 --fsoptions noatime,commit=30,data=writeback,nobh
+part /kafka3 --asprimary --fstype="ext4" --grow --ondisk=vdc --size=1 --fsoptions noatime,commit=30,data=writeback,nobh
+part /kafak4 --asprimary --fstype="ext4" --grow --ondisk=vdd --size=1 --fsoptions noatime,commit=30,data=writeback,nobh
+
+%packages
+
+@core
+telnet
+mc
+mtr
+vim
+bind-utils
+curl
+wget
+ntp
+ntpdate
+puppet
+mdadm
+%end
+
+%post
+tune2fs -m 0 /dev/vda3
+tune2fs -m 0 /dev/vdb3
+tune2fs -m 0 /dev/vdc1
+tune2fs -m 0 /dev/vdd1
+
+echo "NETWORKING_IPV6=no" >> /etc/sysconfig/network
+echo "net.ipv6.conf.all.disable_ipv6 = 1" >> /etc/sysctl.conf
+
+cat << EOF1 > /etc/sysconfig/network-scripts/ifcfg-bond0
+DEVICE="bond0"
+BONDING_OPTS="mode=802.3ad miimon=100 xmit_hash_policy=layer3+4"
+BOOTPROTO="dhcp"
+ONBOOT="yes"
+TYPE="Bond"
+NM_CONTROLLED="no"
+LINKDELAY="5"
+EOF1
+
+cat << EOF2 >> /etc/sysconfig/network-scripts/ifcfg-eth0
+MASTER="bond0"
+SLAVE="yes"
+EOF2
+
+cat << EOF3 >> /etc/sysconfig/network-scripts/ifcfg-eth1
+MASTER="bond0"
+SLAVE="yes"
+EOF3
+
+cat << EOF4 > /etc/puppet/puppet.conf
+[main]
+    logdir = /var/log/puppet
+    rundir = /var/run/puppet
+[agent]
+    server=puppet.rtk
+    ignorecache     = true
+    pidfile         = /var/run/puppet/agent.pid
+    node_name_fact = fqdn
+    pluginsync = true
+
+    # Set by ENC through puppetconf module.
+    environment = ekhd_hadoop_prod
+EOF4
+
+rpm -i http://yum.ix.km/centos-6.5-x86_64/sputnik-repo-centos-zabbix-prod-1.1-7.noarch.rpm
+%end

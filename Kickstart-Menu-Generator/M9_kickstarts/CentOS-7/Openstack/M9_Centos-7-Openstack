@@ -1,0 +1,154 @@
+#version=RHEL7
+auth --useshadow --enablemd5
+
+skipx
+text
+reboot
+eula --agreed
+# Run the Setup Agent on first boot
+firstboot --disable
+# Keyboard layouts
+keyboard --vckeymap=us --xlayouts='us'
+# System language
+lang en_US.UTF-8
+
+# Network information
+# network --device=bond0 --noipv6 --bootproto=dhcp --onboot=yes --bondslaves=enp1s0f0,enp1s0f1 --bondopts=mode=802.3ad,miimon=100,xmit_hash_policy=layer3+4 --activate
+selinux --disabled
+firewall --disabled
+services --disabled=NetworkManager --enabled=sshd,ntpd,network
+# Root password
+rootpw --iscrypted $1$Cs9J81xU$rN.64VJYws0A2q4sXGRDR0
+# System timezone
+timezone Europe/Moscow
+
+#################### DEFAULT PARTITIONING ######################
+zerombr
+clearpart --drives=sda,sdb,sdc --all
+bootloader --location=mbr --driveorder=sdb
+
+part raid.01 --asprimary --fstype="raid" --ondisk=sda --size=200
+part raid.02 --asprimary --fstype="raid" --ondisk=sda --size=4096
+part raid.03 --asprimary --fstype="raid" --ondisk=sda --size=800000
+part raid.04 --asprimary --fstype="raid" --ondisk=sdb --size=200
+part raid.05 --asprimary --fstype="raid" --ondisk=sdb --size=4096
+part raid.06 --asprimary --fstype="raid" --ondisk=sdb --size=800000
+part raid.07 --asprimary --fstype="raid" --ondisk=sdc --size=200
+part raid.08 --asprimary --fstype="raid" --ondisk=sdc --size=4096
+part raid.09 --asprimary --fstype="raid" --ondisk=sdc --size=800000
+#raid /boot --device=md0 --level=1 --spares=1 raid.01 raid.04 raid.07 --fstype="ext2"
+#raid swap  --device=md1 --level=0 --fstype="swap" raid.02 raid.05 raid.08
+#raid / --device=md2 --level=1 --spares=1 raid.03 raid.06 raid.09 --fstype="ext4"
+raid /boot --device=md0 --level=1 --spares=0 raid.04 raid.07 --fstype="ext2"
+raid swap  --device=md1 --level=0 --fstype="swap" raid.05 raid.08
+raid / --device=md2 --level=1 --spares=0 raid.06 raid.09 --fstype="ext4"
+################################################################
+
+url --url="http://mirror.yandex.ru/centos/7/os/x86_64/"
+
+#url --url="http://dist.srv.pv.km/centos-7.2-x86_64/"
+repo --name="CentOS-Base" --baseurl=http://yum.srv.pv.km/centos-7.2.1511-x86_64/
+repo --name="epel" --baseurl=http://yum.srv.search.km/epel-7.0-x86_64/
+repo --name="rdo-release" --baseurl=http://yum.srv.search.km/openstack-juno-epel-7/
+
+%packages --nobase --excludedocs
+
+
+
+
+
+
+@core
+mdadm
+wget
+net-tools
+mc
+ntp
+tcpdump
+telnet
+sudo
+bind-utils
+quota
+curl
+-postfix*
+#htop
+#nmon
+whois
+#puppet
+-NetworkManager*
+%end
+
+#
+%post 
+#
+rm -f /etc/sysconfig/network-scripts/ifcfg-enp*
+#
+#echo "[rdo]" > /etc/yum.repos.d/rdo.repo
+#echo "name=rdo" >> /etc/yum.repos.d/rdo.repo
+#echo "baseurl=http://repos.fedorapeople.org/repos/openstack/openstack-juno/epel-7/" >> /etc/yum.repos.d/rdo.repo
+#echo "baseurl=http://yum.srv.search.km/openstack-juno-epel-7/" >> /etc/yum.repos.d/rdo.repo
+#echo "enabled=1" >> /etc/yum.repos.d/rdo.repo
+#echo "gpgcheck=0" >> /etc/yum.repos.d/rdo.repo
+#
+sleep 2
+echo 'Bridge Config'
+tee /etc/sysconfig/network-scripts/ifcfg-br-bond0 <<BRIDGE
+DEVICE="br-bond0"
+ONBOOT="yes"
+DEVICETYPE="ovs"
+TYPE="OVSBridge"
+OVSBOOTPROTO="static"
+IPADDR=
+PREFIX=
+GATEWAY=
+HOTPLUG="no"
+BRIDGE
+sleep 2
+#
+echo 'Bond Config'
+tee /etc/sysconfig/network-scripts/ifcfg-bond0 <<BOND
+DEVICE="bond0"
+ONBOOT="yes"
+DEVICETYPE="ovs"
+TYPE="OVSBond"
+OVS_BRIDGE="br-bond0"
+BOND_IFACES="enp1s0f0 enp1s0f1"
+OVS_OPTIONS="bond_mode=balance-tcp lacp=active"
+HOTPLUG="no"
+BOND
+sleep 2
+#
+echo 'ETH0 Config'
+tee  /etc/sysconfig/network-scripts/ifcfg-enp1s0f0 <<ETH
+TYPE=Ethernet
+DEVICE=enp1s0f0
+ONBOOT=yes
+ETH
+sleep 2
+#
+echo 'ETH1 Config'
+tee  /etc/sysconfig/network-scripts/ifcfg-enp1s0f1 <<ETH
+TYPE=Ethernet
+DEVICE=enp1s0f1
+ONBOOT=yes
+ETH
+sleep 2
+#
+yum -yv update
+yum -yv install openvswitch
+systemctl enable openvswitch
+systemctl restart openvswitch
+systemctl restart network
+ovs-vsctl del-port bond0
+ovs-vsctl add-bond br-bond0 bond0 enp1s0f0 enp1s0f1 lacp=active
+#
+echo "net.ipv6.conf.all.disable_ipv6=1" >> /etc/sysctl.conf
+echo "net.ipv6.conf.default.disable_ipv6=1" >> /etc/sysctl.conf
+#
+rpm -i http://yum.ix.km/centos-7.2.1511-x86_64/sputnik-repo-centos-7.2.1511-zabbix-prod-1.1-7.noarch.rpm
+rpm -i http://yum.ix.km/centos-7.2.1511-x86_64/sputnik-repo-centos-7.2.1511-1.1-7.noarch.rpm
+rpm -i http://yum.ix.km/centos-7.2.1511-x86_64/sputnik-repo-centos-7.2.1511-adm-repo-1.1-7.noarch.rpm
+rpm -i http://yum.ix.km/centos-7.2.1511-x86_64/sputnik-repo-epel-7.2.1511-1.1-7.noarch.rpm
+rpm -i http://yum.ix.km/centos-7.2.1511-x86_64/sputnik-repo-centos-7.2.1511-kmsearch-sys-prod-1.1-7.noarch.rpm
+rpm -i http://yum.ix.km/centos-7.2.1511-x86_64/sputnik-repo-openstack-juno-epel-7-1.1-7.noarch.rpm
+%end
