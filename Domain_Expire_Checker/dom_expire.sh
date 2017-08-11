@@ -188,9 +188,9 @@ check_domain_status()
 
     elif [ ${DOMAINDIFF} -lt 30 ]
     then
-            prints ${DOMAIN} "Expiring" "${DOMAINDATE}" "${DOMAINDIFF}" "${REGISTRAR}"
+           prints ${DOMAIN} "Expiring" "${DOMAINDATE}" "${DOMAINDIFF}" "${REGISTRAR}"
      else
-            prints ${DOMAIN} "Valid" "${DOMAINDATE}"  "${DOMAINDIFF}" "${REGISTRAR}"
+           prints ${DOMAIN} "Valid" "${DOMAINDATE}"  "${DOMAINDIFF}" "${REGISTRAR}"
      fi
 }
 
@@ -225,7 +225,8 @@ prints()
 	else
 	    if [ "$4" -lt "3000" ]
 	    then
-		printf "%-35s %-17s\n" "$1"    "$ALERT_STRING"
+#		printf "%-35s %-17s\n" "$1"    "$ALERT_STRING"
+		echo "$1 $ALERT_STRING"
 	    fi
 	fi
 }
