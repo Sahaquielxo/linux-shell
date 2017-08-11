@@ -15,15 +15,14 @@ date2julian()
          ## Since leap years add aday at the end of February, 
          ## calculations are done from 1 March 0000 (a fictional year)
          d2j_tmpmonth=$((12 * ${3} + ${1} - 3))
-#	  d2j_tmpmonth=$((12 * ${1} + ${2} - 3))
         
-          ## If it is not yet March, the year is changed to the previous year
-          d2j_tmpyear=$(( ${d2j_tmpmonth} / 12))
+         ## If it is not yet March, the year is changed to the previous year
+         d2j_tmpyear=$(( ${d2j_tmpmonth} / 12))
         
-          ## The number of days from 1 March 0000 is calculated
-          ## and the number of days from 1 Jan. 4713BC is added 
-          echo $(( (734 * ${d2j_tmpmonth} + 15) / 24 -  2 * ${d2j_tmpyear} + ${d2j_tmpyear}/4
-                        - ${d2j_tmpyear}/100 + ${d2j_tmpyear}/400 + $1 + 1721119 ))
+         ## The number of days from 1 March 0000 is calculated
+         ## and the number of days from 1 Jan. 4713BC is added 
+         echo $(( (734 * ${d2j_tmpmonth} + 15) / 24 -  2 * ${d2j_tmpyear} + ${d2j_tmpyear}/4
+                       - ${d2j_tmpyear}/100 + ${d2j_tmpyear}/400 + $1 + 1721119 ))
     else
           echo 0
     fi
@@ -90,12 +89,7 @@ tolower()
 check_domain_status() 
 {
     # Save the domain since set will trip up the ordering
-#    NDOMAIN=${1}
     DOMAIN=`echo "${1}" | idn`
-#    TLD=$(echo "${NDOMAIN}" | sed -r 's/.*\.([^.]+\.[^.]+)$/\1/')
-#    TLD=`perl -nale 'print $2 if /(\w)?\.([a-zA-z0-9-.]+)/gi' << EOF
-#	"${DOMAIN}"
-#	EOF`
     TLD=`echo "${DOMAIN}" | cut -f2,3 -d '.'`
     case "${TLD}" in
 	moscow) 
@@ -156,21 +150,6 @@ check_domain_status()
 	;;
     esac
 	 
-    # Invoke whois to find the domain registrar and expiration date
-#    ${WHOIS} "${WHOSERVER}" "${1}" > ${WHOIS_TMP}
-#    if [ `echo "${DOMAIN}" | egrep '(jp)' | wc -l` -ne 0 ]
-#    then
-#	${WHOIS} "${1}" > ${WHOIS_TMP}
-#	REGISTRAR=$(echo "Japan Domain")
-#    else
-#	${WHOIS} ${WHOSERVER} "${1}" > ${WHOIS_TMP}
-#	${WHOSERVER} > ${WHOIS_TMP}
-#	REGISTRAR=`cat ${WHOIS_TMP} | ${AWK} -F: '/(R|r)egistrar:/ && $2 != ""  { REGISTRAR=$2 } END { print REGISTRAR }'`
-#    fi
-    # Parse out the expiration date and registrar -- uses the last registrar it finds
-#    REGISTRAR=`cat ${WHOIS_TMP} | ${AWK} -F: '/(R|r)egistrar/ && $2 != ""  { REGISTRAR=substr($2,2,17) } END { print REGISTRAR }'`
-#    REGISTRAR=`cat ${WHOIS_TMP} | ${AWK} -F: '/(R|r)egistrar:/ && $2 != ""  { REGISTRAR=$2 } END { print REGISTRAR }'`
-
     # If the Registrar is NULL, then we didn't get any data
     if [ "${REGISTRAR}" = "" ]
     then
@@ -258,17 +237,12 @@ prints()
 ##########################################
 usage()
 {
-        echo "Usage: $0 [ -e email ] [ -x expir_days ] [ -q ] [ -a ] [ -h ]"
+        echo "Usage: $0 [ -h ]"
         echo "          {[ -d domain_namee ]} || { -f domainfile}"
         echo ""
-        echo "  -a               : Send a warning message through email "
         echo "  -d domain        : Domain to analyze (interactive mode)"
-        echo "  -e email address : Email address to send expiration notices"
         echo "  -f domain file   : File with a list of domains"
         echo "  -h               : Print this screen"
-        echo "  -s whois server  : Whois sever to query for information"
-        echo "  -q               : Don't print anything on the console"
-        echo "  -x days          : Domain expiration interval (eg. if domain_date < days)"
         echo ""
 }
 
@@ -277,12 +251,8 @@ while getopts ae:f:hd:s:qx: option
 do
         case "${option}"
         in
-                a) ALARM="TRUE";;
-                e) ADMIN=${OPTARG};;
                 d) DOMAIN=${OPTARG};;
                 f) SERVERFILE=$OPTARG;;
-                s) WHOIS_SERVER=$OPTARG;;
-                x) WARNDAYS=$OPTARG;;
                 \?) usage
                     exit 1;;
         esac
@@ -316,6 +286,7 @@ touch ${WHOIS_TMP}
 ### If a HOST and PORT were passed on the cmdline, use those values
 if [ "${DOMAIN}" != "" ]
 then
+#Uncomment it if you want table-like output
 #        print_heading
         check_domain_status "${DOMAIN}"
 ### If a file and a "-a" are passed on the command line, check all
@@ -334,9 +305,6 @@ else
         usage
         exit 1
 fi
-
-# Add an extra newline
-echo
 
 ### Remove the temporary files
 rm -f ${WHOIS_TMP}
