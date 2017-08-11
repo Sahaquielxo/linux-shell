@@ -1,23 +1,8 @@
 #!/bin/bash 
 
-# Who to page when an expired domain is detected (cmdline: -e)
-ADMIN="v.khilin@carprice.ru"
-
-# Number of days in the warning threshhold  (cmdline: -x)
-WARNDAYS=30
-
-# If QUIET is set to TRUE, don't print anything on the console (cmdline: -q)
-QUIET="FALSE"
-
-# Don't send emails by default (cmdline: -a)
-ALARM="FALSE"
-
-# Whois server to use (cmdline: -s)
-WHOIS_SERVER="whois.internic.org"
-
 # Location of system binaries
-AWK="/bin/awk"
-WHOIS="/bin/whois"
+AWK=`which awk`
+WHOIS=`which whois`
 DATE="/bin/date"
 
 # Place to stash temporary files
@@ -194,7 +179,6 @@ check_domain_status()
     fi
 
     # The whois Expiration data should resemble teh following: "Expiration Date: 09-may-2008"
-#    DOMAINDATE=`cat ${WHOIS_TMP} | ${AWK} '/Expiration/ { print $NF }'`
     if [ `cat ${WHOIS_TMP} | grep "CO.JP" | wc -l` -ne 0 ]
     then
 	DOMAINDATE=`cat ${WHOIS_TMP} | grep "Connected (" | awk -F'(' '{print $2}' | sed 's/)//g;s/\//-/g'`
@@ -216,27 +200,15 @@ check_domain_status()
     IFS=""
 
     # Convert the date to seconds, and get the diff between NOW and the expiration date
-#    DOMAINJULIAN=$(date2julian ${MONTH} ${1#0} ${3})
     DOMAINJULIAN=$(date2julian ${MONTH} ${3#0} ${1})
     DOMAINDIFF=$(date_diff ${NOWJULIAN} ${DOMAINJULIAN})
 
     if [ ${DOMAINDIFF} -lt 0 ]
     then
-          if [ "${ALARM}" = "TRUE" ]
-          then
-                echo "The domain ${DOMAIN} has expired!" \
-                | ${MAIL} -s "Domain ${DOMAIN} has expired!" ${ADMIN}
-           fi
-
            prints ${DOMAIN} "Expired" "${DOMAINDATE}" "${DOMAINDIFF}" ${REGISTRAR}
 
-    elif [ ${DOMAINDIFF} -lt ${WARNDAYS} ]
+    elif [ ${DOMAINDIFF} -lt 30 ]
     then
-           if [ "${ALARM}" = "TRUE" ]
-           then
-                    echo "The domain ${DOMAIN} will expire on ${DOMAINDATE}" \
-                    | ${MAIL} -s "Domain ${DOMAIN} will expire in ${WARNDAYS}-days or less" ${ADMIN}
-            fi
             prints ${DOMAIN} "Expiring" "${DOMAINDATE}" "${DOMAINDIFF}" "${REGISTRAR}"
      else
             prints ${DOMAIN} "Valid" "${DOMAINDATE}"  "${DOMAINDIFF}" "${REGISTRAR}"
@@ -250,11 +222,8 @@ check_domain_status()
 ####################################################
 print_heading()
 {
-        if [ "${QUIET}" != "TRUE" ]
-        then
                 printf "\n%-35s %-17s %-8s %-11s %-5s\n" "Domain" "Registrar" "Status" "Expires" "Days Left"
                 echo "----------------------------------- ----------------- -------- ----------- ---------"
-        fi
 }
 
 #####################################################################
@@ -268,27 +237,18 @@ print_heading()
 #####################################################################
 prints()
 {
-    if [ "${QUIET}" != "TRUE" ]
-    then
             MIN_DATE=$(echo $3 | ${AWK} '{ print $1, $2, $4 }')
 	    ALERT_STRING=`echo "will expire LESS then in 30 days"`
 	    JUST_STRING=`echo "DOMAIN WILL EXPIRE IN $4 DAYS"`
-#            printf "%-35s %-17s %-8s %-11s %-5s\n" "$1" "$5" "$2" "$MIN_DATE" "$4"
 	if [ "$4" == "Unknown" ]
 	then
 	  printf "%-35s %-17s\n" "$1    Does not exists"
 	else
-	    if [ "$4" -lt "30" ]
+	    if [ "$4" -lt "3000" ]
 	    then
-		printf "%-35s %-17s\n" "$1    "$ALERT_STRING"
-#	    else 
-		#printf "%-35s %-17s\n" "$1     "$JUST_STRING"
+		printf "%-35s %-17s\n" "$1"    "$ALERT_STRING"
 	    fi
-#	    printf "%-35s %-17s\n" "$4"
 	fi
-
-	
-    fi
 }
 
 ##########################################
@@ -322,7 +282,6 @@ do
                 d) DOMAIN=${OPTARG};;
                 f) SERVERFILE=$OPTARG;;
                 s) WHOIS_SERVER=$OPTARG;;
-                q) QUIET="TRUE";;
                 x) WARNDAYS=$OPTARG;;
                 \?) usage
                     exit 1;;
