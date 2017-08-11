@@ -223,7 +223,7 @@ prints()
 	then
 	  printf "%-35s %-17s\n" "$1    Does not exists"
 	else
-	    if [ "$4" -lt "3000" ]
+	    if [ "$4" -lt "30" ]
 	    then
 #		printf "%-35s %-17s\n" "$1"    "$ALERT_STRING"
 		echo "$1 $ALERT_STRING"
