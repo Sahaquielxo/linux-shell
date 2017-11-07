@@ -1,10 +1,10 @@
 Very customed script with a lot of defined variables. Rewrite it if you need, I'm too lazy.
 
-###You needs only this script in ```/home/user/.passwords/``` directory and ```.hosts``` file in the same directory.
+### You needs only this script in ```/home/user/.passwords/``` directory and ```.hosts``` file in the same directory.
 
 Strings 8, 9 in my script will rewrite your .hosts file, so remove them!
 
-##Usage:
+## Usage:
 Run the script. It will: 
 + ul Randomly read "Crime and Punishment" chapters from 1 to 12.
 + ul Choose a randomly character in a very long string.
