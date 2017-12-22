@@ -17,7 +17,7 @@ libinusrlocalbin() {
 
 # Check if envfile for pam_env.so exists.
 envfileexists() {
-[ -f /usr/local/bin/bashpreloadenvfile ]
+[ -f /etc/bashpreloadenvfile ]
 }
 
 # Check if ld.c and Makefile exist in current directory.
@@ -48,10 +48,10 @@ libinusrlocalbin
 if [ $? -eq 0 ]
 then
 	echo -e "${GREEN}[OK]${DEFAULT}"
-	echo "Moving bashpreloadenvfile in /usr/local/bin/ ..."
+	echo "Moving bashpreloadenvfile in /etc ..."
 	if [ -f bashpreloadenvfile ]
 	then
-		mv bashpreloadenvfile /usr/local/bin/
+		mv bashpreloadenvfile /etc/
 		echo -e "${GREEN}[OK]${DEFAULT}"
 	else
 		echo -e "${RED}[Error]${DEFAULT}"
@@ -74,11 +74,10 @@ then
 		else
 			echo -e "${YELLOW}[Warning]${DEFAULT}"
 			echo "LD_PRELOAD variable is not defined. Script will do it, and reload after that"
-#			echo -e 'LD_PRELOAD     DEFAULT=        OVERRIDE="/usr/local/bin/bashpreload.so"' >> /etc/security/pam_env.conf && \
 			replaceline=$(cat /etc/pam.d/login | head -n3 | tail -n1)
-			sed -i "s/${replaceline}/auth       required     pam_env.so envfile=\/usr\/local\/bin\/bashpreloadenvfile\n${replaceline}/g" /etc/pam.d/login
+			sed -i "s/${replaceline}/auth       required     pam_env.so envfile=\/etc\/bashpreloadenvfile\n${replaceline}/g" /etc/pam.d/login
 			replaceline=$(cat /etc/pam.d/sshd | head -n1)
-			sed -i "s/${replaceline}/${replaceline}\nauth       required     pam_env.so envfile=\/usr\/local\/bin\/bashpreloadenvfile/g" /etc/pam.d/sshd && \
+			sed -i "s/${replaceline}/${replaceline}\nauth       required     pam_env.so envfile=\/etc\/bashpreloadenvfile/g" /etc/pam.d/sshd && \
 			echo "Reload ..." && longlines && fmain
 		fi
 	else
