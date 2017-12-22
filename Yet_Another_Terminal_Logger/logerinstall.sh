@@ -15,6 +15,11 @@ libinusrlocalbin() {
 [ -f /usr/local/bin/bashpreload.so ]
 }
 
+# Check if envfile for pam_env.so exists.
+envfileexists() {
+[ -f /usr/local/bin/bashpreloadenvfile ]
+}
+
 # Check if ld.c and Makefile exist in current directory.
 candmakefile() {
 [ -f ld.c -a -f Makefile ]
@@ -22,12 +27,12 @@ candmakefile() {
 
 # Check if /etc/security/pam_env.conf file exists.
 pamenvfile() { 
-[ -f /etc/security/pam_env.conf ]
+[ -f /etc/pam.d/login -a -f /etc/pam.d/sshd ]
 }
 
-# Check if /etc/security/pam_env.conf file already contains environment variable LD_PRELOAD.
+# Check if pam.d files already contains environment variable LD_PRELOAD.
 pamenvfileready() {
-[ $(grep -c bashpreload.so /etc/security/pam_env.conf) -gt 0 ]
+[ $(grep -c bashpreload.so /etc/pam.d/login) -gt 0 -a $(grep -c bashpreloadenvfile /etc/pam.d/sshd) -gt 0 ]
 }
 
 # Echo long lines
@@ -43,7 +48,19 @@ libinusrlocalbin
 if [ $? -eq 0 ]
 then
 	echo -e "${GREEN}[OK]${DEFAULT}"
-	echo "Looking for /etc/security/pam_env.conf ..."
+	echo "Moving bashpreloadenvfile in /usr/local/bin/ ..."
+	if [ -f bashpreloadenvfile ]
+	then
+		mv bashpreloadenvfile /usr/local/bin/
+		echo -e "${GREEN}[OK]${DEFAULT}"
+	else
+		echo -e "${RED}[Error]${DEFAULT}"
+		echo "File missed in repo. Check it, or create and add in repository file bashpreloadenvfile contents:"
+		echo "LD_PRELOAD=\"/usr/local/bin/bashpreload.so\""
+		echo -e "LD_PRELOAD=\"/usr/local/bin/bashpreload.so\"" > bashpreloadenvfile
+		cp bashpreloadenvfile /usr/local/bin/
+	fi
+	echo "Looking for /etc/pam.d/login and /etc/pam.d/sshd files ..."
 	pamenvfile
 	if [ $? -eq 0 ]
 	then
@@ -57,13 +74,16 @@ then
 		else
 			echo -e "${YELLOW}[Warning]${DEFAULT}"
 			echo "LD_PRELOAD variable is not defined. Script will do it, and reload after that"
-			echo -e 'LD_PRELOAD     DEFAULT=        OVERRIDE="/usr/local/bin/bashpreload.so"' >> /etc/security/pam_env.conf && \
+#			echo -e 'LD_PRELOAD     DEFAULT=        OVERRIDE="/usr/local/bin/bashpreload.so"' >> /etc/security/pam_env.conf && \
+			replaceline=$(cat /etc/pam.d/login | head -n3 | tail -n1)
+			sed -i "s/${replaceline}/auth       required     pam_env.so envfile=\/usr\/local\/bin\/bashpreload.so\n${replaceline}/g" /etc/pam.d/login
+			replaceline=$(cat /etc/pam.d/sshd | head -n1)
+			sed -i "s/${replaceline}/${replaceline}\nauth       required     pam_env.so envfile=\/usr\/local\/bin\/bashpreloadenvfile/g" /etc/pam.d/sshd && \
 			echo "Reload ..." && longlines && fmain
-#			echo "Everything is ready. Bye-bye."
 		fi
 	else
 		echo -e "${RED}[Error]${DEFAULT}"
-		echo "File /etc/security/pam_env.conf does not exists"
+		echo "File /etc/pam.d/login or /etc/pam.d/sshd does not exists"
 	fi
 else
 	echo -e "${YELLOW}[Warning]${DEFAULT}"
@@ -94,5 +114,10 @@ else
 		fi
 	fi
 fi
+
+echo "Final step: Unset variable for another programs ..."
+echo '[ $LD_PRELOAD ] && unset LD_PRELOAD' > /etc/profile.d/unsetLD_PRE.sh
+echo -e "${GREEN}[Finished]${DEFAULT}"
+
 }
 fmain
