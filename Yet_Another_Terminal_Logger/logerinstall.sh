@@ -103,14 +103,18 @@ else
 		candmakefile
 		if [ $? -eq 0 ]
 		then
-			make && \
-			echo -e "${GREEN}[OK]${DEFAULT}"; echo "Compiled successfully"; echo "Reload ..."; longlines; fmain 
+			make && {
+				echo -e "${GREEN}[OK]${DEFAULT}"; echo "Compiled successfully"; echo "Reload ..."; longlines; fmain
+		       	} || { 
+				echo -e "${RED}[Failed]${DEFAULT}"; echo "Compilation failed, exit now ..."; exit 255
+			     }
 		else
 			echo -e "${RED}[Error]${DEFAULT}"
 			echo "ld.c or Makefile not found."
 			echo "Please, check:"
 			echo "1) Files ld.c and Makefile exists."
 			echo "2) They are in the same with loginstall.sh file directory"
+			exit 255
 		fi
 	fi
 fi
