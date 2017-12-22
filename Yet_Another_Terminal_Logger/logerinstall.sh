@@ -76,7 +76,7 @@ then
 			echo "LD_PRELOAD variable is not defined. Script will do it, and reload after that"
 #			echo -e 'LD_PRELOAD     DEFAULT=        OVERRIDE="/usr/local/bin/bashpreload.so"' >> /etc/security/pam_env.conf && \
 			replaceline=$(cat /etc/pam.d/login | head -n3 | tail -n1)
-			sed -i "s/${replaceline}/auth       required     pam_env.so envfile=\/usr\/local\/bin\/bashpreload.so\n${replaceline}/g" /etc/pam.d/login
+			sed -i "s/${replaceline}/auth       required     pam_env.so envfile=\/usr\/local\/bin\/bashpreloadenvfile\n${replaceline}/g" /etc/pam.d/login
 			replaceline=$(cat /etc/pam.d/sshd | head -n1)
 			sed -i "s/${replaceline}/${replaceline}\nauth       required     pam_env.so envfile=\/usr\/local\/bin\/bashpreloadenvfile/g" /etc/pam.d/sshd && \
 			echo "Reload ..." && longlines && fmain
