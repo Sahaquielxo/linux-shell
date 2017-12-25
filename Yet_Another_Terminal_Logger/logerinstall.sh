@@ -32,7 +32,7 @@ pamenvfile() {
 
 # Check if pam.d files already contains environment variable LD_PRELOAD.
 pamenvfileready() {
-[ $(grep -c bashpreload.so /etc/pam.d/login) -gt 0 -a $(grep -c bashpreloadenvfile /etc/pam.d/sshd) -gt 0 ]
+[ $(grep -c bashpreloadenvfile /etc/pam.d/login) -gt 0 -a $(grep -c bashpreloadenvfile /etc/pam.d/sshd) -gt 0 ]
 }
 
 # Echo long lines
