@@ -27,12 +27,12 @@ candmakefile() {
 
 # Check if /etc/security/pam_env.conf file exists.
 pamenvfile() { 
-[ -f /etc/pam.d/login -a -f /etc/pam.d/sshd -a -f /etc/pam.d/sudo ]
+[ -f /etc/pam.d/login -a -f /etc/pam.d/sshd -a -f /etc/pam.d/sudo-i ]
 }
 
 # Check if pam.d files already contains environment variable LD_PRELOAD.
 pamenvfileready() {
-[ $(grep -c bashpreloadenvfile /etc/pam.d/login) -gt 0 -a $(grep -c bashpreloadenvfile /etc/pam.d/sshd) -gt 0 ]
+[ $(grep -c bashpreloadenvfile /etc/pam.d/login) -gt 0 -a $(grep -c bashpreloadenvfile /etc/pam.d/sshd) -gt 0 -a $(grep -c bashpreloadenvfile /etc/pam.d/sudo-i) -gt 0 ]
 }
 
 # Echo long lines
@@ -60,7 +60,7 @@ then
 		echo -e "LD_PRELOAD=\"/usr/local/bin/bashpreload.so\"" > bashpreloadenvfile
 		cp bashpreloadenvfile /usr/local/bin/
 	fi
-	echo "Looking for /etc/pam.d/login, /etc/pam.d/sudo and /etc/pam.d/sshd files ..."
+	echo "Looking for /etc/pam.d/login, /etc/pam.d/sudo-i and /etc/pam.d/sshd files ..."
 	pamenvfile
 	if [ $? -eq 0 ]
 	then
@@ -76,8 +76,8 @@ then
 			echo "LD_PRELOAD variable is not defined. Script will do it, and reload after that"
 			replaceline=$(cat /etc/pam.d/login | head -n3 | tail -n1)
 			sed -i "s/${replaceline}/auth       required     pam_env.so envfile=\/etc\/bashpreloadenvfile\n${replaceline}/g" /etc/pam.d/login
-			replaceline=$(cat /etc/pam.d/sudo | head -n1)
-			sed -i "s/${replaceline}/${replaceline}\nauth       required     pam_env.so envfile=\/etc\/bashpreloadenvfile/g" /etc/pam.d/sudo
+			replaceline=$(cat /etc/pam.d/sudo-i | head -n1)
+			sed -i "s/${replaceline}/${replaceline}\nauth       required     pam_env.so envfile=\/etc\/bashpreloadenvfile/g" /etc/pam.d/sudo-i
 			replaceline=$(cat /etc/pam.d/sshd | head -n1)
 			sed -i "s/${replaceline}/${replaceline}\nauth       required     pam_env.so envfile=\/etc\/bashpreloadenvfile/g" /etc/pam.d/sshd && \
 			echo "Reload ..." && longlines && fmain
