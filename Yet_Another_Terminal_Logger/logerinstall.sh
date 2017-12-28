@@ -15,6 +15,11 @@ libinusrlocalbin() {
 [ -f /usr/local/bin/bashpreload.so ]
 }
 
+# Check if setLD_PRE.sh in /usr/local/bin directory.
+setldinusrlocalbin() {
+[ -f /usr/local/bin/setLD_PRE.sh ]
+}
+
 # Check if envfile for pam_env.so exists.
 envfileexists() {
 [ -f /etc/bashpreloadenvfile ]
@@ -32,7 +37,7 @@ pamenvfile() {
 
 # Check if pam.d files already contains environment variable LD_PRELOAD.
 pamenvfileready() {
-[ $(grep -c bashpreloadenvfile /etc/pam.d/login) -gt 0 -a $(grep -c bashpreloadenvfile /etc/pam.d/sshd) -gt 0 -a $(grep -c bashpreloadenvfile /etc/pam.d/sudo-i) -gt 0 ]
+[ $(grep -c bashpreloadenvfile /etc/pam.d/login) -gt 0 -a $(grep -c bashpreloadenvfile /etc/pam.d/sshd) -gt 0 -a $(grep -c bashpreloadenvfile /etc/pam.d/sudo-i) -gt 0 -a $(grep -c bashpreloadenvfile /etc/pam.d/sudo) -gt 0 ]
 }
 
 # Echo long lines
@@ -60,7 +65,7 @@ then
 		echo -e "LD_PRELOAD=\"/usr/local/bin/bashpreload.so\"" > bashpreloadenvfile
 		cp bashpreloadenvfile /usr/local/bin/
 	fi
-	echo "Looking for /etc/pam.d/login, /etc/pam.d/sudo-i and /etc/pam.d/sshd files ..."
+	echo "Looking for /etc/pam.d/login, /etc/pam.d/sudo, /etc/pam.d/sudo-i and /etc/pam.d/sshd files ..."
 	pamenvfile
 	if [ $? -eq 0 ]
 	then
@@ -74,13 +79,19 @@ then
 		else
 			echo -e "${YELLOW}[Warning]${DEFAULT}"
 			echo "LD_PRELOAD variable is not defined. Script will do it, and reload after that"
+			echo "Define LD_PRELOAD in /etc/pam.d/login ..."
 			replaceline=$(cat /etc/pam.d/login | head -n3 | tail -n1)
-			sed -i "s/${replaceline}/auth       required     pam_env.so envfile=\/etc\/bashpreloadenvfile\n${replaceline}/g" /etc/pam.d/login
+			sed -i "s/${replaceline}/auth       required     pam_env.so envfile=\/etc\/bashpreloadenvfile\n${replaceline}/g" /etc/pam.d/login && echo -e "${GREEN}[OK]${DEFAULT}"
+			echo "Define LD_PRELOAD in /etc/pam.d/sudo-i ..."
 			replaceline=$(cat /etc/pam.d/sudo-i | head -n1)
-			sed -i "s/${replaceline}/${replaceline}\nauth       required     pam_env.so envfile=\/etc\/bashpreloadenvfile/g" /etc/pam.d/sudo-i
+			sed -i "s/${replaceline}/${replaceline}\nauth       required     pam_env.so envfile=\/etc\/bashpreloadenvfile/g" /etc/pam.d/sudo-i && echo -e "${GREEN}[OK]${DEFAULT}"
+			echo "Define LD_PRELOAD in /etc/pam.d/sudo ..."
+			replaceline=$(cat /etc/pam.d/sudo | head -n4 | tail -n1)
+			sed -i "s/${replaceline}/${replaceline}\nsession    optional     pam_exec.so \/usr\/local\/bin\/setLD_PRE.sh\nsession    optional     pam_env.so envfile=\/etc\/bashpreloadenvfile/g" /etc/pam.d/sudo && echo -e "${GREEN}[OK]${DEFAULT}"
+			echo "Define LD_PRELOAD in /etc/pam.d/sshd ..."
 			replaceline=$(cat /etc/pam.d/sshd | head -n1)
 			sed -i "s/${replaceline}/${replaceline}\nauth       required     pam_env.so envfile=\/etc\/bashpreloadenvfile/g" /etc/pam.d/sshd && \
-			echo "Reload ..." && longlines && fmain
+			echo -e "${GREEN}[OK]${DEFAULT}"; echo "Reload ..." && longlines && fmain
 		fi
 	else
 		echo -e "${RED}[Error]${DEFAULT}"
@@ -120,9 +131,25 @@ else
 	fi
 fi
 
+}
+fmain
+
+# Final steps.
+
 echo "Final step: Unset variable for another programs ..."
 echo '[ $LD_PRELOAD ] && unset LD_PRELOAD' > /etc/profile.d/unsetLD_PRE.sh
 echo -e "${GREEN}[Finished]${DEFAULT}"
 
-}
-fmain
+echo "Checking if /usr/local/bin/setLD_PRE.sh exists ..."
+setldinusrlocalbin
+if [ $? -eq 0 ]
+then
+	echo -e "${GREEN}[OK]${DEFAULT}"
+	echo "Finished."
+else
+	echo -e "${YELLOW}[Warning]${DEFAULT}"
+	echo "FIle not found. Copying it from the repository ..."
+	cp setLD_PRE.sh /usr/local/bin/ && chmod +x /usr/local/bin/setLD_PRE.sh
+	echo -e "${GREEN}[OK]${DEFAULT}"
+	echo "Finished."
+fi
