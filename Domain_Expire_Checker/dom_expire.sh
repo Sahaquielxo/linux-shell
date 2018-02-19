@@ -1,8 +1,8 @@
 #!/bin/bash 
 
 # Location of system binaries
-AWK=`which awk`
-WHOIS=`which whois`
+AWK=$(which awk)
+WHOIS=$(which whois)
 DATE="/bin/date"
 
 # Place to stash temporary files
@@ -10,7 +10,7 @@ WHOIS_TMP="/var/tmp/whois.$$"
 
 date2julian() 
 {
-    if [ "${1} != "" ] && [ "${2} != ""  ] && [ "${3}" != "" ]
+    if [ "${1}" != "" ] && [ "${2}" != ""  ] && [ "${3}" != "" ]
     then
          ## Since leap years add aday at the end of February, 
          ## calculations are done from 1 March 0000 (a fictional year)
@@ -35,7 +35,7 @@ date2julian()
 #############################################################################
 getmonth() 
 {
-       LOWER=`tolower $1`
+	LOWER=$(tolower $1)
               
        case ${LOWER} in
              jan|01) echo 1 ;;
@@ -77,8 +77,8 @@ date_diff()
 ##################################################################
 tolower() 
 {
-     LOWER=`echo ${1} | tr [A-Z] [a-z]`
-     echo $LOWER
+	LOWER=$(echo ${1} | tr [A-Z] [a-z])
+     	echo $LOWER
 }
 
 ##################################################################
@@ -89,64 +89,64 @@ tolower()
 check_domain_status() 
 {
     # Save the domain since set will trip up the ordering
-    DOMAIN=`echo "${1}" | idn`
-    TLD=`echo "${DOMAIN}" | cut -f2,3 -d '.'`
+    DOMAIN=$(echo "${1}" | idn)
+    TLD=$(echo "${DOMAIN}" | cut -f2,3 -d '.')
     case "${TLD}" in
 	moscow) 
 	  whois -h whois.nic.moscow "${DOMAIN}" > ${WHOIS_TMP}
-	  REGISTRAR=`cat ${WHOIS_TMP} | ${AWK} -F: '/(R|r)egistrar:/ && $2 != ""  { REGISTRAR=$2 } END { print REGISTRAR }'`
+	  REGISTRAR=$(cat ${WHOIS_TMP} | ${AWK} -F: '/(R|r)egistrar:/ && $2 != ""  { REGISTRAR=$2 } END { print REGISTRAR }')
 	;;
 	xn--80adxhks) 
 	  whois -h whois.nic.xn--80adxhks "${DOMAIN}" > ${WHOIS_TMP}
-	  REGISTRAR=`cat ${WHOIS_TMP} | ${AWK} -F: '/(R|r)egistrar:/ && $2 != ""  { REGISTRAR=$2 } END { print REGISTRAR }'`
+	  REGISTRAR=$(cat ${WHOIS_TMP} | ${AWK} -F: '/(R|r)egistrar:/ && $2 != ""  { REGISTRAR=$2 } END { print REGISTRAR }')
 	;;
 	pro)    
 	  whois -h whois.afilias.net "${DOMAIN}" > ${WHOIS_TMP}
-	  REGISTRAR=`cat ${WHOIS_TMP} | ${AWK} -F: '/(R|r)egistrar:/ && $2 != ""  { REGISTRAR=$2 } END { print REGISTRAR }'`
+	  REGISTRAR=$(cat ${WHOIS_TMP} | ${AWK} -F: '/(R|r)egistrar:/ && $2 != ""  { REGISTRAR=$2 } END { print REGISTRAR }')
 	;;
 	group)  
 	  whois -h whois.donuts.co "${DOMAIN}" > ${WHOIS_TMP}
-	  REGISTRAR=`cat ${WHOIS_TMP} | ${AWK} -F: '/(R|r)egistrar:/ && $2 != ""  { REGISTRAR=$2 } END { print REGISTRAR }'`
+	  REGISTRAR=$(cat ${WHOIS_TMP} | ${AWK} -F: '/(R|r)egistrar:/ && $2 != ""  { REGISTRAR=$2 } END { print REGISTRAR }')
 	;;
 	com.ru) 
 	  whois -h whois.nic.ru "${DOMAIN}" > ${WHOIS_TMP}
-	  REGISTRAR=`cat ${WHOIS_TMP} | ${AWK} -F: '/(R|r)egistrar:/ && $2 != ""  { REGISTRAR=$2 } END { print REGISTRAR }'`
+	  REGISTRAR=$(cat ${WHOIS_TMP} | ${AWK} -F: '/(R|r)egistrar:/ && $2 != ""  { REGISTRAR=$2 } END { print REGISTRAR }')
 	;;
 	spb.ru)
 	  whois -h whois.nic.ru "${DOMAIN}" > ${WHOIS_TMP}
-          REGISTRAR=`cat ${WHOIS_TMP} | ${AWK} -F: '/(R|r)egistrar:/ && $2 != ""  { REGISTRAR=$2 } END { print REGISTRAR }'`
+	  REGISTRAR=$(cat ${WHOIS_TMP} | ${AWK} -F: '/(R|r)egistrar:/ && $2 != ""  { REGISTRAR=$2 } END { print REGISTRAR }')
         ;;
 	tatar)
 	  whois -h whois.nic.tatar "${DOMAIN}" > ${WHOIS_TMP}
-	  REGISTRAR=`cat ${WHOIS_TMP} | ${AWK} -F: '/(R|r)egistrar:/ && $2 != ""  { REGISTRAR=$2 } END { print REGISTRAR }'`
+	  REGISTRAR=$(cat ${WHOIS_TMP} | ${AWK} -F: '/(R|r)egistrar:/ && $2 != ""  { REGISTRAR=$2 } END { print REGISTRAR }')
 	;;
 	life)
 	  whois -h whois.donuts.co "${DOMAIN}" > ${WHOIS_TMP}
-	  REGISTRAR=`cat ${WHOIS_TMP} | ${AWK} -F: '/(R|r)egistrar:/ && $2 != ""  { REGISTRAR=$2 } END { print REGISTRAR }'`
+	  REGISTRAR=$(cat ${WHOIS_TMP} | ${AWK} -F: '/(R|r)egistrar:/ && $2 != ""  { REGISTRAR=$2 } END { print REGISTRAR }')
 	;;
 	auction)
 	  whois -h whois.unitedtld.com "${DOMAIN}" > ${WHOIS_TMP}
-          REGISTRAR=`cat ${WHOIS_TMP} | ${AWK} -F: '/(R|r)egistrar:/ && $2 != ""  { REGISTRAR=$2 } END { print REGISTRAR }'`
+	  REGISTRAR=$(cat ${WHOIS_TMP} | ${AWK} -F: '/(R|r)egistrar:/ && $2 != ""  { REGISTRAR=$2 } END { print REGISTRAR }')
         ;;
 	xn--plai)
 	  whois -h whois.tcinet.ru "${DOMAIN}" > ${WHOIS_TMP}
-          REGISTRAR=`cat ${WHOIS_TMP} | ${AWK} -F: '/(R|r)egistrar:/ && $2 != ""  { REGISTRAR=$2 } END { print REGISTRAR }'`
+	  REGISTRAR=$(cat ${WHOIS_TMP} | ${AWK} -F: '/(R|r)egistrar:/ && $2 != ""  { REGISTRAR=$2 } END { print REGISTRAR }')
         ;;
 	biz)
 	  whois -h whois.biz "${DOMAIN}" > ${WHOIS_TMP}
-          REGISTRAR=`cat ${WHOIS_TMP} | ${AWK} -F: '/(R|r)egistrar:/ && $2 != ""  { REGISTRAR=$2 } END { print REGISTRAR }'`
+	  REGISTRAR=$(cat ${WHOIS_TMP} | ${AWK} -F: '/(R|r)egistrar:/ && $2 != ""  { REGISTRAR=$2 } END { print REGISTRAR }')
         ;;
 	co.jp)  
 	  whois "${DOMAIN}" > ${WHOIS_TMP}
-	  REGISTRAR=`echo "Japan Domain"`
+	  REGISTRAR=$(echo "Japan Domain")
 	;;
 	photo)
 	  whois -h whois.uniregistry.net "${DOMAIN}" > ${WHOIS_TMP}
-          REGISTRAR=`cat ${WHOIS_TMP} | ${AWK} -F: '/(R|r)egistrar:/ && $2 != ""  { REGISTRAR=$2 } END { print REGISTRAR }'`
+	  REGISTRAR=$(cat ${WHOIS_TMP} | ${AWK} -F: '/(R|r)egistrar:/ && $2 != ""  { REGISTRAR=$2 } END { print REGISTRAR }')
         ;;
 	*)	
 	  whois "${DOMAIN}" > ${WHOIS_TMP}
-	  REGISTRAR=`cat ${WHOIS_TMP} | ${AWK} -F: '/(R|r)egistrar:/ && $2 != ""  { REGISTRAR=$2 } END { print REGISTRAR }'`
+	  REGISTRAR=$(cat ${WHOIS_TMP} | ${AWK} -F: '/(R|r)egistrar:/ && $2 != ""  { REGISTRAR=$2 } END { print REGISTRAR }')
 	;;
     esac
 	 
@@ -158,19 +158,19 @@ check_domain_status()
     fi
 
     # The whois Expiration data should resemble teh following: "Expiration Date: 09-may-2008"
-    if [ `cat ${WHOIS_TMP} | grep "CO.JP" | wc -l` -ne 0 ]
+    if [ $(cat ${WHOIS_TMP} | grep -c "CO.JP") -ne 0 ]
     then
-	DOMAINDATE=`cat ${WHOIS_TMP} | grep "Connected (" | awk -F'(' '{print $2}' | sed 's/)//g;s/\//-/g'`
+	    DOMAINDATE=$(cat ${WHOIS_TMP} | grep "Connected (" | awk -F'(' '{print $2}' | sed 's/)//g;s/\//-/g')
     else
-    	DOMAINDATE=`cat ${WHOIS_TMP} | ${AWK} '/paid-till|Expiry/ { print $NF}' | sed 's/T.*//g;s/\./-/g;s/\//-/g'`
-    	if [ `echo "${DOMAINDATE}" | wc -c` -lt 7 ]
-    	then
-		DOMAINDATE=`cat ${WHOIS_TMP} | ${AWK} -F'                      ' '/paid-till|Expir/ { print $NF}' | awk '{print $NF "-" $2 "-" $3}'`
-		if [ `echo "${DOMAINDATE}" | grep Date | wc -l` -eq 1 ]
-		then
-			DOMAINDATE=`cat ${WHOIS_TMP} | ${AWK} -F'                      ' '/paid-till|Expir/ { print $NF}' | awk -F':' '{print $2 }' | awk '{print $1}' | awk -F'-' '{print $3 "-" $2 "-" $1}'`
-		fi
-    	fi
+	    DOMAINDATE=$(cat ${WHOIS_TMP} | ${AWK} '/paid-till|Expiry/ { print $NF}' | sed 's/T.*//g;s/\./-/g;s/\//-/g')
+	    if [ $(echo "${DOMAINDATE}" | wc -c) -lt 7 ]
+    	    then
+		    DOMAINDATE=$(cat ${WHOIS_TMP} | ${AWK} -F'                      ' '/paid-till|Expir/ { print $NF}' | awk '{print $NF "-" $2 "-" $3}')
+		    if [ $(echo "${DOMAINDATE}" | grep -c Date) -eq 1 ]
+		    then
+		  	    DOMAINDATE=$(cat ${WHOIS_TMP} | ${AWK} -F'                      ' '/paid-till|Expir/ { print $NF}' | awk -F':' '{print $2 }' | awk '{print $1}' | awk -F'-' '{print $3 "-" $2 "-" $1}')
+		    fi
+    	    fi
     fi
     # Whois data should be in the following format: "13-feb-2006"
     IFS="-"
