@@ -1,13 +1,14 @@
 #!/bin/bash
 
-CERT_EXP_DATE=`openssl x509 -enddate -noout -in /etc/nginx/ssl/cert_2017.pem | awk -F= '{print $NF}'`
+# One day I'll create variable to pass the path to cert with it. But not today.
+CERT_EXP_DATE=$(openssl x509 -enddate -noout -in /etc/nginx/ssl/cert_2017.pem | awk -F= '{print $NF}')
 
-CERT_EXP_MONTH=`echo "${CERT_EXP_DATE}" | awk '{print $1}'`
-CERT_EXP_DAY=`echo "${CERT_EXP_DATE}" | awk '{print $2}'`
-CERT_EXP_YEAR=`echo "${CERT_EXP_DATE}" | awk '{print $4}'`
-CERT_EXP_TIME=`echo "${CERT_EXP_DATE}" | awk '{print $3}'`
+CERT_EXP_MONTH=$(echo "${CERT_EXP_DATE}" | awk '{print $1}')
+CERT_EXP_DAY=$(echo "${CERT_EXP_DATE}" | awk '{print $2}')
+CERT_EXP_YEAR=$(echo "${CERT_EXP_DATE}" | awk '{print $4}')
+CERT_EXP_TIME=$(echo "${CERT_EXP_DATE}" | awk '{print $3}')
 
-CURRENT_UNIXTIME=`date +"%s"`
+CURRENT_UNIXTIME=$(date +"%s")
 
 	case ${CERT_EXP_MONTH} in
              Jan|01) CERT_EXP_MONTH_CONV=01 ;;
@@ -29,7 +30,7 @@ CURRENT_UNIXTIME=`date +"%s"`
 
 CERT_EXP_DATE_FORMAT=$(echo ""${CERT_EXP_MONTH_CONV}"/"${CERT_EXP_DAY}"/"${CERT_EXP_YEAR}" "${CERT_EXP_TIME}"")
 
-EXP_UNIXTIME=`date --date="${CERT_EXP_DATE_FORMAT}" +"%s"`
+EXP_UNIXTIME=$(date --date="${CERT_EXP_DATE_FORMAT}" +"%s")
 DIFF_UNIXTIME=$(($EXP_UNIXTIME - $CURRENT_UNIXTIME))
 FOUNDED_TIME=$(($DIFF_UNIXTIME/86400))
 
