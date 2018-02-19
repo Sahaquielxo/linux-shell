@@ -86,8 +86,8 @@ then
 			replaceline=$(cat /etc/pam.d/sudo-i | head -n1)
 			sed -i "s/${replaceline}/${replaceline}\nauth       required     pam_env.so envfile=\/etc\/bashpreloadenvfile/g" /etc/pam.d/sudo-i && echo -e "${GREEN}[OK]${DEFAULT}"
 			echo "Define LD_PRELOAD in /etc/pam.d/sudo ..."
-			replaceline=$(cat /etc/pam.d/sudo | head -n4 | tail -n1)
-			sed -i "s/${replaceline}/${replaceline}\nsession    optional     pam_exec.so \/usr\/local\/bin\/setLD_PRE.sh\nsession    optional     pam_env.so envfile=\/etc\/bashpreloadenvfile/g" /etc/pam.d/sudo && echo -e "${GREEN}[OK]${DEFAULT}"
+			replaceline=$(cat /etc/pam.d/sudo | head -n1)
+			sed -i "s/${replaceline}/${replaceline}\nsauth    required     pam_exec.so envfile=\/etc\/bashpreloadenvfile/g" /etc/pam.d/sudo && echo -e "${GREEN}[OK]${DEFAULT}"
 			echo "Define LD_PRELOAD in /etc/pam.d/sshd ..."
 			replaceline=$(cat /etc/pam.d/sshd | head -n1)
 			sed -i "s/${replaceline}/${replaceline}\nauth       required     pam_env.so envfile=\/etc\/bashpreloadenvfile/g" /etc/pam.d/sshd && \
