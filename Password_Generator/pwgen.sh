@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# Check only password_generator() function and code after. This shit belongs to my directories and server names.
 #WORKDIR=$(pwd)
 WORKDIR=/home/ansible/.passwords
 cd ../webops/ansible
