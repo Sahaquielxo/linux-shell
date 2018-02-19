@@ -20,3 +20,5 @@ Output example:
 /etc/machine-id
 /etc/makepkg.conf
 37965```
+
+NB.! Retarded assigning of the bash variable in awk.
