@@ -1,0 +1,17 @@
+[Unit]
+Description=Apache Kafka server
+Documentation=https://kafka.apache.org/
+Requies=network.target remote-fs.target syslog.target
+After=network.target remote-fs.target syslog.target
+
+[Service]
+Type=simple
+Environment=KAFKA_OPTS="-javaagent:jmx_prometheus_javaagent/target/jmx_prometheus_javaagent-0.10.jar=9185:/usr/local/jmx_exporter/config.yml"
+ExecStart=/usr/local/kafka/bin/kafka-server-start.sh /usr/local/kafka/config/server.properties
+ExecStop=/usr/local/kafka/bin/kafka-server-stop.sh
+KillSignal=SIGINT
+Restart=always
+NotifyAccess=all
+
+[Install]
+WantedBy=multi-user.target
