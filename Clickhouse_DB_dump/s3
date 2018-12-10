@@ -6,6 +6,7 @@ import json
 import time
 import click
 import boto3
+import statsd
 import datetime
 import requests
 import argparse
@@ -100,7 +101,7 @@ def download(srcf, bucket, dstf):
 @click.option('--username', '-u', type=str, required=True, default='root', help='Database username(root as default)')
 @click.option('--password', '-p', type=str, required=True, help='User password')
 @click.option('--port', '-P', type=str, default='9000', help='Database port(default 9000)')
-def clickdump(dbname, hostname, username, password, port, bucket):
+def clickdump(dbname, hostname, username, password, port):
     subprocess.call(['clickhouse-client', '-u', username, '-h', hostname, '--password', password, '-d', dbname, '-q', 'SHOW DATABASES'])
     partition_query = 'SELECT partition FROM system.parts WHERE active AND database = \'' + dbname + '\''
     tables_query = 'SELECT table FROM system.parts WHERE active AND database = \'' + dbname + '\''
@@ -110,20 +111,21 @@ def clickdump(dbname, hostname, username, password, port, bucket):
     databases = subprocess.check_output(['clickhouse-client', '-u', username, '-h', hostname, '--password', password, '-q', db_query]).splitlines()
     i = 0
     while i < len(partitions):
-        print ("DB: " + databases[i].decode("utf-8") + " Table: " + tables[i].decode("utf-8") + " Partition: " + partitions[i].decode("utf-8"))
         dumpquery = ('ALTER TABLE ' + databases[i].decode("utf-8") + '.' + tables[i].decode("utf-8") + ' FREEZE PARTITION ' + '\'' + partitions[i].decode("utf-8") + '\'')
-        print (dumpquery)
+        print (dumpquery + "...")
         subprocess.call(['clickhouse-client', '-u', username, '-h', hostname, '--password', password, '-d', dbname, '-q', dumpquery])
         i = i + 1
+    print ("Dumped! Starting sync on S3...")
 
     time_marker = str(time.time())
-    bucket = time_marker + 'crmclick'
+    bucket = time_marker.split(".")[0] + '_crmclick'
     s3_resource.create_bucket(Bucket=bucket)
     stored_dumps = subprocess.check_output(['find', '/data/shadow/', '-type', 'f', '-mindepth', '5']).splitlines()
     for dump in stored_dumps:
-        print (time_marker.split(".")[0] + '_' + dump.decode("utf-8").split("/", 5)[-1])
         s3filename = str(dump.decode("utf-8").split("/", 5)[-1])
         s3_client.upload_file(dump.decode("utf-8"), bucket, s3filename)
+    ## Clean now 
+    subprocess.call(['rm', '-rf', '/data/shadow/'])
 
 if __name__ == '__main__':
     cli()

@@ -3,6 +3,20 @@ services:
   clickdumper:
     container_name: clickdumper
     image: clickdumper
+    command: ["s3", "clickdump", "--dbname", "stats_prod", "-u", "root", "-p", "qwerty123", "-h", "crmclick"]
+    logging:
+      driver: syslog
+      options:
+        syslog-facility: local2
+        tag: clickdumper
+    restart: always
+    sysctls:
+      net.core.somaxconn: 8192
+    volumes:
+    - /spool/ch/data:/data
+  s3monitor:
+    container_name: s3monitor
+    image: clickdumper
     logging:
       driver: syslog
       options:
