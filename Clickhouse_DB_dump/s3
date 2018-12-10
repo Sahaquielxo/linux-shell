@@ -78,7 +78,7 @@ def size(bucket):
     bucket = s3_resource.Bucket(bucket)
     for object in bucket.objects.all():
         bucket_size += object.size
-    print ("Total size of " + str(bucket) + ": " + str(bucket_size) + " bytes (" + str(int(bucket_size) / 1024 / 1024) + "Mbytes)")
+    print ("Total size of " + str(bucket) + ": " + str(bucket_size) + " bytes (" + str(int(bucket_size) / 1024 / 1024).split(".")[0] + "Mbytes)")
 
 @cli.command(help='Uploading specified file in to the s3 storage by bucket name')
 @click.option('--bucket', '-b', type=str, help='Bucket in which you will upload your data')
