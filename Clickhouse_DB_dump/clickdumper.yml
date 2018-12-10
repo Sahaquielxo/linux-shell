@@ -1,0 +1,14 @@
+networks: {}
+services:
+  clickdumper:
+    container_name: clickdumper
+    image: clickdumper
+    logging:
+      driver: syslog
+      options:
+        syslog-facility: local2
+        tag: clickdumper
+    restart: always
+    volumes:
+    - /spool/ch/data:/data
+version: '2.1'
