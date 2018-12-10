@@ -1,0 +1,129 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+import json
+import time
+import click
+import boto3
+import datetime
+import requests
+import argparse
+import optparse
+import subprocess
+import clickhouse_driver
+from optparse import OptionParser
+from clickhouse_driver import Client
+
+AWS_ACCESS_KEY_ID=os.environ.get('AWS_ACCESS_KEY_ID')
+AWS_SECRET_ACCESS_KEY=os.environ.get('AWS_SECRET_ACCESS_KEY')
+S3_URL=os.environ.get('S3_URL')
+
+if ("AWS_ACCESS_KEY_ID" in os.environ) and ("AWS_SECRET_ACCESS_KEY" in os.environ) and ("S3_URL" in os.environ):
+    pass
+else:
+    print ("[Warn]. One of the environment variables are not defined. Check AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and S3_URL and define it manual.")
+    exit (1)
+
+s3_client = boto3.client('s3', aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY, endpoint_url=S3_URL, config=boto3.session.Config(signature_version='s3v4'))
+s3_resource = boto3.resource('s3', aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY, endpoint_url=S3_URL, config=boto3.session.Config(signature_version='s3v4'))
+
+@click.group()
+def cli():
+    pass
+
+@cli.command(help='Create bucket in s3 storage')
+@click.option('--name', '-n', type=str, required=True, help='Bucket name')
+def create(name):
+    print ("Creating bucket with the name " + name)
+    s3_resource.create_bucket(Bucket=name)
+    print ("Success.")
+
+@cli.command(help='Delete bucket in s3 storage')
+@click.option('--name', '-n', type=str, required=True, help='Bucket name')
+def delete(name):
+    bucket = s3_resource.Bucket(name)
+    print ("Deleting all objects in the bucket..")
+    bucket.objects.all().delete()
+    bucket.delete()
+    print ("Success.")
+
+@cli.command(help='Delete specified file in s3 storage')
+@click.option('--bucket', '-b', type=str, required=True, help='Bucket name')
+@click.option('--key', '-k', type=str, required=True, help='Filename in storage')
+def fdelete(bucket, key):
+    print ("Deleting " + key + " file..")
+    s3_resource.Object(bucket, key).delete()
+    print ("Done.")
+
+@cli.command(help='List all buckets in s3 storage')
+def list():
+    outstr = ''
+    for bucket in s3_client.list_buckets()['Buckets']:
+        outstr += "Name: " + bucket['Name'] + '\t\tCreation Date: ' + str(bucket['CreationDate'].now().date()) + '\n'
+    print (outstr)
+
+@cli.command(help='List files in the bucket')
+@click.option('--bucket', '-b', type=str, required=True, help='Bucket name')
+def flist(bucket):
+    bucket = s3_resource.Bucket(bucket)
+    for object in bucket.objects.all():
+        print (object.key)
+
+@cli.command(help='Show total size of the bucket in bytes')
+@click.option('--bucket', '-b', type=str, required=True, help='Bucket name')
+def size(bucket):
+    bucket_size = 0
+    bucket = s3_resource.Bucket(bucket)
+    for object in bucket.objects.all():
+        bucket_size += object.size
+    print ("Total size of " + str(bucket) + ": " + str(bucket_size) + " bytes (" + str(int(bucket_size) / 1024 / 1024) + "Mbytes)")
+
+@cli.command(help='Uploading specified file in to the s3 storage by bucket name')
+@click.option('--bucket', '-b', type=str, help='Bucket in which you will upload your data')
+@click.option('--srcf', '-s', type=str, help='File to be uploaded on the host')
+@click.option('--dstf', '-d', type=str, help='File to be uploaded on the storage')
+def upload(srcf, bucket, dstf):
+    s3_client.upload_file(srcf, bucket, dstf)
+
+@cli.command(help='Downloading specified file on the local storage')
+@click.option('--bucket', '-b', type=str, required=True, help='Bucket from which you want to download data')
+@click.option('--srcf', '-s', type=str, required=True, help='File to be downloaded from the storage')
+@click.option('--dstf', '-d', type=str, required=True, help='File to be downloaded to the host')
+def download(srcf, bucket, dstf):
+    s3_resource.Bucket(bucket).download_file(srcf, dstf)
+    s3_resource.Bucket(bucket)
+
+@cli.command(help='Clickhouse dump')
+@click.option('--dbname', '-d', type=str, required=True, help='Define database name')
+@click.option('--hostname', '-h', type=str, required=True, default='127.0.0.1', help='Database hostname(127.0.0.1 as default)')
+@click.option('--username', '-u', type=str, required=True, default='root', help='Database username(root as default)')
+@click.option('--password', '-p', type=str, required=True, help='User password')
+@click.option('--port', '-P', type=str, default='9000', help='Database port(default 9000)')
+def clickdump(dbname, hostname, username, password, port, bucket):
+    subprocess.call(['clickhouse-client', '-u', username, '-h', hostname, '--password', password, '-d', dbname, '-q', 'SHOW DATABASES'])
+    partition_query = 'SELECT partition FROM system.parts WHERE active AND database = \'' + dbname + '\''
+    tables_query = 'SELECT table FROM system.parts WHERE active AND database = \'' + dbname + '\''
+    db_query = 'SELECT database FROM system.parts WHERE active AND database = \'' + dbname + '\''
+    partitions = subprocess.check_output(['clickhouse-client', '-u', username, '-h', hostname, '--password', password, '-q', partition_query]).splitlines()
+    tables = subprocess.check_output(['clickhouse-client', '-u', username, '-h', hostname, '--password', password, '-q', tables_query]).splitlines()
+    databases = subprocess.check_output(['clickhouse-client', '-u', username, '-h', hostname, '--password', password, '-q', db_query]).splitlines()
+    i = 0
+    while i < len(partitions):
+        print ("DB: " + databases[i].decode("utf-8") + " Table: " + tables[i].decode("utf-8") + " Partition: " + partitions[i].decode("utf-8"))
+        dumpquery = ('ALTER TABLE ' + databases[i].decode("utf-8") + '.' + tables[i].decode("utf-8") + ' FREEZE PARTITION ' + '\'' + partitions[i].decode("utf-8") + '\'')
+        print (dumpquery)
+        subprocess.call(['clickhouse-client', '-u', username, '-h', hostname, '--password', password, '-d', dbname, '-q', dumpquery])
+        i = i + 1
+
+    time_marker = str(time.time())
+    bucket = time_marker + 'crmclick'
+    s3_resource.create_bucket(Bucket=bucket)
+    stored_dumps = subprocess.check_output(['find', '/data/shadow/', '-type', 'f', '-mindepth', '5']).splitlines()
+    for dump in stored_dumps:
+        print (time_marker.split(".")[0] + '_' + dump.decode("utf-8").split("/", 5)[-1])
+        s3filename = str(dump.decode("utf-8").split("/", 5)[-1])
+        s3_client.upload_file(dump.decode("utf-8"), bucket, s3filename)
+
+if __name__ == '__main__':
+    cli()
