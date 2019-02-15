@@ -9,7 +9,12 @@ endpointurl=$(echo "--endpoint-url=https://xxxx")
 # Buckets count, must be less or equal 3.
 buckets_count=$(aws s3 ls "${endpointurl}" | wc -l)
 # The eldest bucket name, must be removed
-remove_bucket=$(aws s3 ls "${endpointurl}" | grep $(date +%Y-%m-%d --date="3 days ago")--${curhost}--mongodb--bucket | awk '{print $NF}')
+if [ ${buckets_count} -ge 4 ]
+then
+	remove_bucket=$(aws s3 ls "${endpointurl}" | grep $(date +%Y-%m-%d --date="3 days ago")--${curhost}--mongodb--bucket | awk '{print $NF}')
+else
+	remove_bucket=""
+fi
 # New bucket name
 new_bucket="${pattern}--mongodb--bucket"
 # Directory for snapshot mounting
@@ -36,30 +41,39 @@ log ()
 log "$0 have just started."
 
 # Make directories
-log "Creating ${snapshot_directory}.."
-mkdir ${snapshot_directory}
-log "Creating ${s3_directory}.."
-mkdir ${s3_directory}
+if [ ! -d $"{snapshot_directory}" ]
+then
+	log "Creating ${snapshot_directory}.."
+	mkdir ${snapshot_directory}
+fi
+#if [ ! -d ${s3_directory} ]
+#then
+#	log "Creating ${s3_directory}.."
+#	mkdir ${s3_directory}
+#fi
 
 # Delete old data in the old bucket
-log "Old bucket: ${remove_bucket}"
-log "Removing old bucket ${remove_bucket}.."
+if [ ${buckets_count} -ge 4 ]
+then
+	log "Old bucket: ${remove_bucket}"
+	log "Removing old bucket ${remove_bucket}.."
 
-for object in $(aws s3 ls s3://${remove_bucket} ${endpointurl} | awk '{print $NF}')
-do
-	log "Removing ${object} from ${remove_bucket}.."
-	aws s3 rm s3://${remove_bucket}/${object} ${endpointurl}
-done
-log "Removing ${remove_bucket}.."
-aws s3 rb s3://${remove_bucket} ${endpointurl}
+	for object in $(aws s3 ls s3://${remove_bucket} ${endpointurl} | awk '{print $NF}')
+	do
+		log "Removing ${object} from ${remove_bucket}.."
+		aws s3 rm s3://${remove_bucket}/${object} ${endpointurl} &>> ${logfile}
+	done
+	log "Removing ${remove_bucket}.."
+	aws s3 rb s3://${remove_bucket} ${endpointurl} &>> ${logfile}
+fi
 
 # Create new bucket
 log "Creating new bucket ${new_bucket}.."
-aws s3 mb s3://${new_bucket} ${endpointurl}
+aws s3 mb s3://${new_bucket} ${endpointurl} &>> ${logfile}
 
 # Mount bucket
-log "Mount bucket ${new_bucket} to ${s3_directory}.."
-#s3fs ${new_bucket} ${s3_directory} -o passwd_file=~/.passwd-s3fs -o url=https://xxx -o use_path_request_style -o dbglevel=info
+# log "Mount bucket ${new_bucket} to ${s3_directory}.."
+# s3fs ${new_bucket} ${s3_directory} -o passwd_file=~/.passwd-s3fs -o url=https://xxx -o use_path_request_style -o dbglevel=info
 
 # Stop mongodb and create snapshot
 log "Stopping mongodb.."
@@ -74,9 +88,13 @@ mount -o nouuid /dev/vg00/${snapshot_name} ${snapshot_directory}
 
 # Creating data directory dump
 log "MongoDB data directory will be dumped right now."
-log "Command: tar -cvf - ${snapshot_directory}/data/* | split -d -b 4G -a 2 - ${s3_chunk_name} --filter=\"aws s3 cp - s3://${new_bucket}/$FILE ${endpointurl}\""
-tar -cvf - ${snapshot_directory}/data/* | split -d -b 100M -a 10 - ${s3_chunk_name} --filter="aws s3 cp - s3://${new_bucket}/\$FILE --endpoint-url=https://xxx"
-log "MongoDB data directory has been sent to the s3 bucket ${new_bucket}."
+tar -cvf - ${snapshot_directory}/data/* | split -d -b 100M -a 10 - ${s3_chunk_name} --filter="aws s3 cp - s3://${new_bucket}/\$FILE --endpoint-url=https://xxx" &>> ${logfile}
+if [ $? -ne 0 ]
+then
+	log "[CRITICAL] Something wrong, mongoDB dump was not uploaded on the S3 storage"
+else
+	log "MongoDB data directory has been sent to the s3 bucket ${new_bucket}."
+fi
 
 # Umount s3 storage and snapshot
 log "Unmount ${s3_directory}.."
@@ -87,6 +105,12 @@ umount ${snapshot_directory}
 # Delete snapshot
 log "Deleting snapshot.."
 lvremove --yes /dev/vg00/${snapshot_name}
+
+# Delete directories
+if [ -d "${snapshot_directory}" ]
+then
+	rm -rf "${snapshot_directory}"
+fi
 
 finishtime=$(date +%s)
 worktime=$(($finishtime - starttime))
