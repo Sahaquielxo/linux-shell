@@ -14,7 +14,7 @@
 
 1. Установить пакет: 
 
-`yum -y install rambler-crm-mongodb-dump`
+`yum -y install mongodb-dump`
 
 2. Готово.
 
