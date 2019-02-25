@@ -1,11 +1,53 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# Variables
+# Init Variables
 starttime=$(date +%s)
 curdate=$(date +%Y-%m-%d)
 curhost=$(hostname)
 pattern="${curdate}--${curhost}"
-endpointurl=$(echo "--endpoint-url=https://xxxx")
+endpointurl=$(echo "--endpoint-url=https://xxx")
+logfile="/var/log/mongodb-dump/dump-log-${curdate}.log"
+mongo_directory='/var/lib/mongo'
+
+# Functions
+log ()
+{
+        echo "[INFO] [$(date '+%Y-%m-%d %H:%M:%S')] $1" >> ${logfile}
+}
+
+log "$0 init process started."
+
+stage_group=( host1 host2 )
+prod_group=( host3 host4 )
+
+isstage=0
+isprod=0
+
+if [[ "${stage_group[@]}" =~ "${HOSTNAME}" ]] 
+then 
+	isstage=1
+	log "${HOSTNAME} is in stage environment."
+else 
+	isprod=1
+	log "${HOSTNAME} is in prod environment."
+fi
+
+if [ ${isstage} -eq 1 ]
+then
+	if [ "$HOSTNAME" = "$(mongo --quiet --eval "rs.isMaster().primary" | awk -F':' '{print $1}')" ]
+	then
+		log "${HOSTNAME} is primary. Bye."
+		exit 300
+	fi
+else
+	if [ "$HOSTNAME" = "$(mongo --quiet -urootadmin -piddqdforever --authenticationDatabase=admin --eval "rs.isMaster().primary" | awk -F':' '{print $1}')" ]
+	then 
+		log "${HOSTNAME} is primary. Bye."
+		exit 300
+	fi
+fi
+
+# Other Variables
 # Buckets count, must be less or equal 3.
 buckets_count=$(aws s3 ls "${endpointurl}" | wc -l)
 # The eldest bucket name, must be removed
@@ -21,24 +63,16 @@ new_bucket="${pattern}--mongodb--bucket"
 snapshot_directory="/${pattern}--mongodb--snapshot"
 # Directory for s3 bucket mounting
 s3_directory="/${pattern}--s3--bucket"
-logfile="/root/s3mongo/dump-log-${curdate}.log"
-mongo_directory='/var/lib/mongo'
 mongo_device=$(mount | grep ${mongo_directory} | awk '{print $1}')
 mongo_size=$(du -sch ${mongo_directory} | awk '{print $1}' | tail -n1 | sed 's/G//g')
 snapshot_size=$((${mongo_size} + 10))
 snapshot_name="${pattern}--mongodb--snapshot"
 s3_chunk_name="mongodb_tar_chunk_"
 
-# Functions
-log ()
-{
-	echo "[INFO] [$(date '+%Y-%m-%d %H:%M:%S')] $1" >> ${logfile}
-}
-
 
 ### Start ###
 
-log "$0 have just started."
+log "$0 main process started."
 
 # Make directories
 if [ ! -d $"{snapshot_directory}" ]
@@ -46,11 +80,6 @@ then
 	log "Creating ${snapshot_directory}.."
 	mkdir ${snapshot_directory}
 fi
-#if [ ! -d ${s3_directory} ]
-#then
-#	log "Creating ${s3_directory}.."
-#	mkdir ${s3_directory}
-#fi
 
 # Delete old data in the old bucket
 if [ ${buckets_count} -ge 4 ]
@@ -72,8 +101,6 @@ log "Creating new bucket ${new_bucket}.."
 aws s3 mb s3://${new_bucket} ${endpointurl} &>> ${logfile}
 
 # Mount bucket
-# log "Mount bucket ${new_bucket} to ${s3_directory}.."
-# s3fs ${new_bucket} ${s3_directory} -o passwd_file=~/.passwd-s3fs -o url=https://xxx -o use_path_request_style -o dbglevel=info
 
 # Stop mongodb and create snapshot
 log "Stopping mongodb.."
